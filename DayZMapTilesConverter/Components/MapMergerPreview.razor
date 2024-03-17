@@ -1,0 +1,170 @@
+﻿@using System.IO
+@implements IDisposable
+
+@inject IImageMergeService ImageProcessingService
+@inject ICacheSizeService CacheSizeService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+
+
+<div class="map-preview-main-content">
+    <div class="fx-stack w-100 h-100">
+        <div class="@(IsDoingAction ? "doing-action-blur" : null) fx-stack map-preview-container w-100 h-100">
+
+            @if (!string.IsNullOrEmpty(Image))
+            {
+                <img src="@Image"
+                     class="map-preview-image @(IsDoingAction ? "is-doing-action" : "finished") w-100 h-100" />
+
+                <ImageModal ImageUrl="@Image" IsVisible="@isModalVisible" IsVisibleChanged="@(value => isModalVisible = value)" />
+
+            }
+            else
+            {
+                <MudText Class="mx-5" Align="Align.Center" Typo="Typo.subtitle2">
+                    A preview of the merged tiles will be shown here
+                </MudText>
+            }
+
+            <div class="position-absolute bottom-0 end-0 mx-3 my-3">
+                <MudFab Color="Color.Primary"
+                        Class="btn-save-preview"
+                        Label="Merge Tiles"
+                        StartIcon="@Icons.Material.Filled.Image"
+                        Size="Size.Small"
+                        OnClick="GenerateMergedMapAsync"
+                        Disabled="@(FilePaths.Count == 0 || IsDoingAction)" />
+                <MudFab Color="Color.Primary"
+                        Class="btn-save-preview"
+                        StartIcon="@Icons.Material.Filled.ZoomIn"
+                        Size="Size.Small"
+                        OnClick="OpenModal"
+                        Disabled="@(Image is null || IsDoingAction)" />
+                <MudFab Color="Color.Primary"
+                        Class="btn-save-preview"
+                        StartIcon="@Icons.Material.Filled.Save"
+                        Size="Size.Small"
+                        OnClick="SaveCachedMergedMap"
+                        Disabled="@(Image is null || IsDoingAction)" />
+            </div>
+        </div>
+
+        @*@if (IsMergingTiles)
+        {
+        }*@
+        <div class="action-status-container @(IsDoingAction ? "is-doing-action" : null)">
+            <MudText Class="mx-5" Align="Align.Center" Typo="Typo.h6">
+                @actionStatus
+            </MudText>
+        </div>
+
+
+    </div>
+
+
+</div>
+
+@code {
+
+    private bool isModalVisible = false;
+
+    private void OpenModal()
+    {
+        isModalVisible = true;
+    }
+
+
+    private string actionStatus = string.Empty;
+    public string? Image { get; set; } = null;
+
+    [Parameter]
+    public bool IsDoingAction { get; set; } = false;
+
+    [Parameter]
+    public EventCallback<bool> IsMergingTilesChanged { get; set; }
+
+
+    [Parameter, EditorRequired]
+    public required MapMergeSettings MergeSettings { get; set; }
+
+    [Parameter]
+    public List<string> FilePaths { get; set; } = new();
+
+    public async Task GenerateMergedMapAsync()
+    {
+        IsDoingAction = true;
+        await IsMergingTilesChanged.InvokeAsync(IsDoingAction);
+
+        try
+        {
+            actionStatus = "Generating Merged Map";
+            StateHasChanged();
+            await ImageProcessingService.GenerateMergedMap(MergeSettings!, FilePaths);
+
+            actionStatus = "Generating Preview Image";
+            StateHasChanged();
+            var imageBytes = await ImageProcessingService.GeneratePreviewImage(1024, 1024);
+            Image = await JSRuntime.InvokeAsync<string>("createImageBlobUrl", imageBytes);
+
+            actionStatus = "Caching Generated Map";
+            StateHasChanged();
+            await ImageProcessingService.CacheMergedMap();
+
+            actionStatus = "Calculating Cache Size";
+            await CacheSizeService.UpdateCacheSizeAsync();
+
+        }
+        catch (FileNotFoundException ex)
+        {
+            Image = null;
+            FilePaths.Clear();
+            Snackbar.Add($"Error Generating Preview Image: {ex.Message}", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Image = null;
+            Snackbar.Add($"Error Generating Preview Image: {ex.Message}", Severity.Error);
+        }
+
+        IsDoingAction = false;
+        await IsMergingTilesChanged.InvokeAsync(IsDoingAction);
+    }
+
+    public async Task SaveCachedMergedMap()
+    {
+        IsDoingAction = true;
+        await IsMergingTilesChanged.InvokeAsync(IsDoingAction);
+
+        try
+        {
+            actionStatus = "Saving Merged Map from Cache";
+            var resultPath = await ImageProcessingService.SaveCachedMap();
+
+            if (!string.IsNullOrEmpty(resultPath))
+            {
+                Image = null;
+                Snackbar.Add($"Successfully saved the Merged Map to: {resultPath}", Severity.Success);
+
+            }
+
+        }
+        catch (Exception ex)
+        {
+            Image = null;
+            Snackbar.Add($"Error Saving Cached Image: {ex.Message}", Severity.Error);
+        }
+
+
+        IsDoingAction = false;
+        await IsMergingTilesChanged.InvokeAsync(IsDoingAction);
+        StateHasChanged();
+    }
+
+    public async void Dispose()
+    {
+        if (!string.IsNullOrEmpty(Image))
+        {
+            await JSRuntime.InvokeVoidAsync("revokeBlobUrl", Image);
+        }
+    }
+}

@@ -1,0 +1,175 @@
+﻿@page "/map-tiles-separator"
+
+@using System.IO
+@inject IJSRuntime JSRuntime
+@inject IFileDialogService FileDialogService
+@inject ISnackbar Snackbar
+
+<div class="d-flex justify-content-center w-100 h-100">
+    <MudContainer MaxWidth="MaxWidth.Large" Class="px-0 py-0">
+        <MudPaper Width="100%" Elevation="5">
+            <MudGrid Class="h-100 w-100 mx-0 my-0">
+                <MudItem xs="12" sm="5" Class="mx-0 my-0 px-0 py-0">
+                    <div class="px-5 py-5 h-100 w-100 d-flex">
+                        <div class="map-preview-container square-container">
+                            <div class="map-preview-content square-content">
+                                <MapSeparatorPreview SeparateSettings="@settings" FilePath="@(filePath)"
+                                                     IsSeparatingMapChanged="@(x => IsMergingTilesChanged(x))">
+                                </MapSeparatorPreview>
+                            </div>
+                        </div>
+                    </div>
+
+                </MudItem>
+                <MudItem xs="12" sm="7" Class="mx-0 my-0 px-0 py-0">
+                    <MudStack Spacing="3" class="h-100 w-100 px-5 py-5">
+                        <MudText Typo="Typo.h3">Separate Map</MudText>
+                        <MudDivider Class="flex-grow-0" />
+                        <div class="d-flex gap-3 align-items-center">
+                            <MudButton HtmlTag="label"
+                                       Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.UploadFile"
+                                       OnClick="SelectFilePaths"
+                                       Disabled="@(isSeparatingMap)">
+                                Select Map
+                            </MudButton>
+
+                            @if (!string.IsNullOrEmpty(filePath))
+                            {
+                                <MudText>@Path.GetFileName(filePath) Selected</MudText>
+                            }
+
+                        </div>
+
+                        <div class="d-flex align-items-center gap-2 mt-3">
+                            <MudText Typo="Typo.h6">Configuration</MudText>
+                            <MudIcon Icon="@Icons.Material.Filled.Settings" />
+                        </div>
+
+                        <MudDivider Class="flex-grow-0" />
+
+                        <div class="d-flex flex-column gap-1">
+                            <div class="d-flex gap-2 align-items-center">
+                                <MudText Typo="Typo.h6">Tile Grid</MudText>
+                                <MudTooltip Text="Choose how many rows and columns your
+                                                  selected tiles will be arranged in"
+                                            Arrow="true" Placement="Placement.Top">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Info"
+                                                   Color="Color.Primary" Size="Size.Small" />
+                                </MudTooltip>
+                            </div>
+                            <div class="d-flex gap-3">
+                                <MudNumericField T="int" Label="Rows"
+                                                 Variant="Variant.Filled"
+                                                 @bind-Value="@settings.Rows" Min="1"
+                                                 Disabled="@(isSeparatingMap)" />
+                                <MudNumericField T="int" Label="Colums"
+                                                 Variant="Variant.Filled"
+                                                 @bind-Value="@settings.Columns" Min="1"
+                                                 Disabled="@(isSeparatingMap)" />
+                            </div>
+                        </div>
+                        <div>
+                            <div class="d-flex gap-0 align-items-center flex-wrap">
+
+
+                                <div class="d-flex align-items-center gap-2 me-2">
+                                    <MudCheckBox T="bool"
+                                                 Label="Draw Coordinates" Color="Color.Primary"
+                                                 @bind-Value="@settings.DrawCoordinates"
+                                                 Disabled="@(isSeparatingMap)" />
+                                    <MudTooltip Text="Draw the X and Y Indeces in the preview Image 
+                                                      (will not be visible if tiles become too small)"
+                                                Arrow="true" Placement="Placement.Top">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Info"
+                                                       Color="Color.Primary" Size="Size.Small" />
+                                    </MudTooltip>
+                                </div>
+
+                                <div class="d-flex align-items-center gap-2">
+                                    <MudCheckBox T="bool"
+                                                 Label="Draw Rows first" Color="Color.Primary"
+                                                 @bind-Value="@settings.DrawRowsFirst"
+                                                 Disabled="@(isSeparatingMap)" />
+                                    <MudTooltip Text="Draw the separated tiles row by row or column by column"
+                                                Arrow="true" Placement="Placement.Top">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Info"
+                                                       Color="Color.Primary" Size="Size.Small" />
+                                    </MudTooltip>
+                                </div>
+
+                                <div class="d-flex align-items-center gap-2">
+                                    <MudCheckBox T="bool"
+                                                 Label="Automatically calculate Tile Size" Color="Color.Primary"
+                                                 @bind-Value="@settings.AutoCalcTileSize"
+                                                 Disabled="@(isSeparatingMap)" />
+                                    <MudTooltip Text="Automatically calculate each tile size (Map Size dived by Rows/Columns)"
+                                                Arrow="true" Placement="Placement.Top">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Info"
+                                                       Color="Color.Primary" Size="Size.Small" />
+                                    </MudTooltip>
+                                </div>
+                            </div>
+                            <div class="d-flex flex-column gap-1">
+                                <div class="d-flex gap-3">
+                                    <MudNumericField T="int" Label="Tile Width (px)"
+                                                     Variant="Variant.Filled"
+                                                     @bind-Value="@settings.TileWidth" Min="1"
+                                                     Disabled="@(isSeparatingMap || settings.AutoCalcTileSize)" />
+                                    <MudNumericField T="int" Label="Tile Height (px)"
+                                                     Variant="Variant.Filled"
+                                                     @bind-Value="@settings.TileHeight" Min="1"
+                                                     Disabled="@(isSeparatingMap || settings.AutoCalcTileSize)" />
+                                </div>
+                            </div>
+                        </div>
+                    </MudStack>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    </MudContainer>
+</div>
+
+
+
+@code {
+    private string filePath = string.Empty;
+    private MapSeparateSettings settings = new();
+
+    private bool isSeparatingMap = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("adjustMapPreviewSize");
+        }
+    }
+
+    private async void SelectFilePaths()
+    {
+        try
+        {
+            var dialogResult = await FileDialogService.GetFilePathAsync(".png;.jpg;.jpeg",
+            "Image Files (*.png;*.jpg;*.jpeg)|*.png;*.jpg;*.jpeg");
+
+            if (dialogResult is not null)
+            {
+                filePath = dialogResult;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error opening File Dialog: {ex.Message}", Severity.Error);
+        }
+
+        StateHasChanged();
+    }
+
+    private void IsMergingTilesChanged(bool isMergingTiles)
+    {
+        this.isSeparatingMap = isMergingTiles;
+        StateHasChanged();
+    }
+}

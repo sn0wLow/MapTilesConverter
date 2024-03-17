@@ -1,0 +1,20 @@
+﻿::deep .mud-input-control
+{
+    margin: 0;
+}
+
+.map-preview-container {
+    width: 100%;
+    height: 100%;
+    max-width: 30rem;
+    display: flex;
+    align-items:center;
+    margin-left: auto;
+    margin-right: auto;
+
+}
+
+.map-preview-content {
+    outline: 2px dashed black;
+
+}

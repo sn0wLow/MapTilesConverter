@@ -1,0 +1,172 @@
+﻿@using System.IO
+@implements IDisposable
+
+@inject IImageSeparateService ImageSeparateService
+@inject ICacheSizeService CacheSizeService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+
+<div class="map-preview-main-content">
+    <div class="fx-stack w-100 h-100">
+        <div class="@(IsDoingAction ? "doing-action-blur" : null) fx-stack map-preview-container w-100 h-100">
+
+            @if (!string.IsNullOrEmpty(Image))
+            {
+                <img src="@Image"
+                     class="map-preview-image @(IsDoingAction ? "is-doing-action" : "finished") w-100 h-100" />
+
+                <ImageModal ImageUrl="@Image" IsVisible="@isModalVisible" IsVisibleChanged="@(value => isModalVisible = value)" />
+
+            }
+            else
+            {
+                <MudText Class="mx-5" Align="Align.Center" Typo="Typo.subtitle2">
+                    A merged preview of the separated tiles will be shown here
+                </MudText>
+            }
+
+            <div class="position-absolute bottom-0 end-0 mx-3 my-3">
+                <MudFab Color="Color.Primary"
+                        Class="btn-save-preview"
+                        Label="Separate Map"
+                        StartIcon="@Icons.Material.Filled.Image"
+                        Size="Size.Small"
+                        OnClick="GenerateSeparatedTilesAsync"
+                        Disabled="@(string.IsNullOrEmpty(FilePath) || IsDoingAction)" />
+                <MudFab Color="Color.Primary"
+                        Class="btn-save-preview"
+                        StartIcon="@Icons.Material.Filled.ZoomIn"
+                        Size="Size.Small"
+                        OnClick="OpenModal"
+                        Disabled="@(Image is null || IsDoingAction)" />
+                <MudFab Color="Color.Primary"
+                        Class="btn-save-preview"
+                        StartIcon="@Icons.Material.Filled.Save"
+                        Size="Size.Small"
+                        OnClick="SaveCachedSeparatedTiles"
+                        Disabled="@(Image is null || IsDoingAction)" />
+            </div>
+        </div>
+
+        <div class="action-status-container @(IsDoingAction ? "is-doing-action" : null)">
+            <MudText Class="mx-5" Align="Align.Center" Typo="Typo.h6">
+                @actionStatus
+            </MudText>
+        </div>
+
+
+    </div>
+
+
+</div>
+
+@code {
+
+    private bool isModalVisible = false;
+
+    private void OpenModal()
+    {
+        isModalVisible = true;
+    }
+
+    private string actionStatus = string.Empty;
+    public string? Image { get; set; } = null;
+
+    [Parameter]
+    public bool IsDoingAction { get; set; } = false;
+
+    [Parameter]
+    public EventCallback<bool> IsSeparatingMapChanged { get; set; }
+
+
+    [Parameter, EditorRequired]
+    public required MapSeparateSettings SeparateSettings { get; set; }
+
+    [Parameter]
+    public string FilePath { get; set; } = string.Empty;
+
+    public async Task GenerateSeparatedTilesAsync()
+    {
+        IsDoingAction = true;
+        await IsSeparatingMapChanged.InvokeAsync(IsDoingAction);
+
+        if (!string.IsNullOrEmpty(Image))
+        {
+            await JSRuntime.InvokeVoidAsync("revokeBlobUrl", Image);
+        }
+
+        try
+        {
+            actionStatus = "Generating Separated Tiles";
+            StateHasChanged();
+            await ImageSeparateService.GenerateSeparatedTiles(SeparateSettings, FilePath);
+
+            actionStatus = "Generating Preview Image";
+            StateHasChanged();
+            var imageBytes = await ImageSeparateService.GeneratePreviewImage(1024, 1024);
+            Image = await JSRuntime.InvokeAsync<string>("createImageBlobUrl", imageBytes);
+
+            actionStatus = "Caching Generated Map";
+            StateHasChanged();
+            await ImageSeparateService.CacheTiles();
+
+            actionStatus = "Calculating Cache Size";
+            await CacheSizeService.UpdateCacheSizeAsync();
+
+        }
+        catch (FileNotFoundException ex)
+        {
+            Image = null;
+            FilePath = string.Empty;
+            Snackbar.Add($"Error Generating Separated Tiles: {ex.Message}", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Image = null;
+            Snackbar.Add($"Error Generating Separated Tiles: {ex.Message}", Severity.Error);
+        }
+
+        IsDoingAction = false;
+        await IsSeparatingMapChanged.InvokeAsync(IsDoingAction);
+    }
+
+    public async Task SaveCachedSeparatedTiles()
+    {
+        IsDoingAction = true;
+        await IsSeparatingMapChanged.InvokeAsync(IsDoingAction);
+
+        try
+        {
+            actionStatus = "Saving Separated Tiles from Cache";
+            var resultPath = await ImageSeparateService.SaveCachedTiles();
+
+
+
+            if (!string.IsNullOrEmpty(resultPath))
+            {
+                Image = null;
+                Snackbar.Add($"Successfully saved Separated Tiles to: {resultPath}", Severity.Success);
+
+            }
+
+        }
+        catch (Exception ex)
+        {
+            Image = null;
+            Snackbar.Add($"Error Saving Separated Tiles: {ex.Message}", Severity.Error);
+        }
+
+
+        IsDoingAction = false;
+        await IsSeparatingMapChanged.InvokeAsync(IsDoingAction);
+        StateHasChanged();
+    }
+
+    public async void Dispose()
+    {
+        if (!string.IsNullOrEmpty(Image))
+        {
+            await JSRuntime.InvokeVoidAsync("revokeBlobUrl", Image);
+        }
+    }
+}

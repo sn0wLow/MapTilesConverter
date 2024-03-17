@@ -1,0 +1,21 @@
+﻿<MudNavMenu Margin="Margin.Normal" Bordered="true">
+    <div>
+        <MudPaper Elevation="5" Class="navbar-header d-flex align-items-center">
+            <MudIconButton Icon="@Icons.Material.Filled.Close" Edge="Edge.Start" Color="Color.Inherit" OnClick="@((e) => ToggleDrawer())" />
+            <MudText Typo="Typo.h6" Class="px-4">DSMM</MudText>
+        </MudPaper>
+    </div>
+    <div class="pt-2">
+        <MudNavLink Match="NavLinkMatch.All" Href="/" Icon="@Icons.Material.Filled.Merge">Map Tiles Merger</MudNavLink>
+        <MudNavLink Match="NavLinkMatch.All" Href="/map-tiles-separator" Icon="@Icons.Material.Filled.CallSplit">Map Tiles Separator</MudNavLink>
+    </div>
+</MudNavMenu>
+
+@code {
+    public event Action? ToggledDrawer;
+
+    private void ToggleDrawer()
+    {
+        ToggledDrawer?.Invoke();
+    }
+}

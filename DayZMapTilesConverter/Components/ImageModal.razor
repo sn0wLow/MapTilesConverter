@@ -1,0 +1,42 @@
+﻿@if (IsVisible)
+{
+    <div class="modal-image-container">
+        <div class="w-100 h-100">
+            <Panzoom WheelMode="WheelMode.ZoomWithWheel"
+                     PanzoomOptions="@(new PanzoomOptions() {DisablePan = false, MaxScale = 10, StartScale = 0.75})">
+                <div @ref="@context.ElementReference"
+                     class="panzoom w-100 h-100 d-flex align-content-center justify-content-center">
+                    <img class="modal-image"
+                         src="@ImageUrl"
+                         alt="image" />
+                </div>
+            </Panzoom>
+        </div>
+
+        <span class="close" @onclick="CloseModal" @onclick:stopPropagation="true">&times;</span>
+
+        <div class="modal-resolution-text-container">
+            <MudText Class="modal-resolution-text">preview resolution</MudText>
+            <MudText Class="modal-resolution-text">1024x1024</MudText>
+        </div>
+
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string? ImageUrl { get; set; }
+
+
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> IsVisibleChanged { get; set; }
+
+    private async Task CloseModal()
+    {
+        IsVisible = false;
+        await IsVisibleChanged.InvokeAsync(IsVisible);
+    }
+}

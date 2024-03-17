@@ -1,0 +1,130 @@
+﻿@inherits LayoutComponentBase
+@inject ILocalStorageService LocalStorage
+@inject ISnackbar Snackbar
+@inject ICacheSizeService CacheSizeService
+
+
+
+<MudThemeProvider @ref="@mudThemeProvider" Theme="@theme" @bind-IsDarkMode="@isDarkMode" />
+<MudDialogProvider FullWidth="true"
+                   MaxWidth="MaxWidth.ExtraSmall"
+                   CloseButton="true"
+                   DisableBackdropClick="true"
+                   NoHeader="false"
+                   Position="DialogPosition.Center"
+                   CloseOnEscapeKey="true" />
+<MudSnackbarProvider />
+
+<div>
+    <MudLayout Class="mud-layout">
+        <MudAppBar Elevation="5" Fixed="true" Dense="true" Class="mud-app-bar">
+            <MudIconButton Icon="@Icons.Material.Filled.Menu" Edge="Edge.Start" Color="Color.Inherit" OnClick="@((e) => DrawerToggle())" />
+            <MudText Typo="Typo.h6" Class="px-4">Map Tiles Converter</MudText>
+            <MudSpacer />
+            @if (CacheSizeService.CacheSize is not null)
+            {
+                <MudText Class="me-3">Image Cache Size: @CacheSizeService.SizeString</MudText>
+            }
+            <MudToggleIconButton Icon="@Icons.Material.Filled.DarkMode" Color="Color.Info"
+                                 ToggledIcon="@Icons.Material.Filled.WbSunny" ToggledColor="Color.Warning"
+                                 aria-label="toggle-darkmode" Class="mud-btn-background"
+                                 @onclick="(e) => ToggleDarkMode()" Toggled="@isDarkMode" />
+        </MudAppBar>
+        <MudDrawer @bind-Open="@_drawerOpen" ClipMode="DrawerClipMode.Never" Variant="@DrawerVariant.Temporary" Width="256px" Elevation="5">
+            <NavMenu @ref="@navMenu" />
+        </MudDrawer>
+        <MudMainContent Class="mud-main-content">
+            <div class="py-5 px-5">
+                @Body
+            </div>
+        </MudMainContent>
+    </MudLayout>
+</div>
+
+
+@code {
+    private MudThemeProvider? mudThemeProvider;
+    private NavMenu? navMenu;
+    private bool isDarkMode;
+
+    bool _drawerOpen = false;
+
+    private void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    private async Task ToggleDarkMode()
+    {
+        isDarkMode = !isDarkMode;
+        await LocalStorage.SetItemAsync("UseDarkMode", isDarkMode);
+    }
+
+    private MudTheme theme = new MudTheme()
+        {
+            Palette = new PaletteLight()
+            {
+                Primary = Colors.Pink.Accent2,
+                Secondary = Colors.Blue.Default,
+                GrayDark = "#E0E0E0"
+            },
+            PaletteDark = new PaletteDark()
+            {
+                Primary = Colors.Pink.Accent2,
+                Secondary = Colors.Blue.Default,
+                GrayDark = "rgb(32,32,32)"
+            }
+        };
+
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            bool? useDarkMode = null;
+
+            await CacheSizeService.UpdateCacheSizeAsync();
+
+            CacheSizeService.OnCacheSizeUpdated += () => 
+            { 
+                InvokeAsync(StateHasChanged); 
+            };
+
+            try
+            {
+                isDarkMode = await mudThemeProvider!.GetSystemPreference();
+                useDarkMode = await LocalStorage.GetItemAsync<bool?>("UseDarkMode");
+            }
+            catch (Exception)
+            {
+
+                useDarkMode = null;
+            }
+
+
+            if (useDarkMode is null)
+            {
+                isDarkMode = await mudThemeProvider!.GetSystemPreference();
+                await LocalStorage.SetItemAsync("UseDarkMode", isDarkMode);
+            }
+            else
+            {
+                isDarkMode = (bool)useDarkMode;
+            }
+
+            if (navMenu is not null)
+            {
+                navMenu!.ToggledDrawer += () =>
+                {
+                    _drawerOpen = !_drawerOpen;
+                    StateHasChanged();
+                };
+            }
+
+
+
+            StateHasChanged();
+        }
+    }
+
+}

@@ -1,0 +1,205 @@
+﻿@page "/"
+
+@using System.IO
+@inject IJSRuntime JSRuntime
+@inject IFileDialogService FileDialogService
+@inject ISnackbar Snackbar
+
+<div class="d-flex justify-content-center w-100 h-100">
+    <MudContainer MaxWidth="MaxWidth.Large" Class="px-0 py-0">
+        <MudPaper Width="100%" Elevation="5">
+            <MudGrid Class="h-100 w-100 mx-0 my-0">
+                <MudItem xs="12" sm="5" Class="mx-0 my-0 px-0 py-0">
+                    <div class="px-5 py-5 h-100 w-100 d-flex">
+                        <div class="map-preview-container square-container">
+                            <div class="map-preview-content square-content">
+                                <MapMergerPreview MergeSettings="@settings" FilePaths="@(filePaths)"
+                                                  IsMergingTilesChanged="@(x => IsMergingTilesChanged(x))">
+                                </MapMergerPreview>
+                            </div>
+                        </div>
+                    </div>
+
+                </MudItem>
+                <MudItem xs="12" sm="7" Class="mx-0 my-0 px-0 py-0">
+                    <MudStack Spacing="3" class="h-100 w-100 px-5 py-5">
+                        <MudText Typo="Typo.h3">Merge Tiles</MudText>
+                        <MudDivider Class="flex-grow-0" />
+                        <div class="d-flex gap-3 align-items-center">
+                            <MudButton HtmlTag="label"
+                                       Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.UploadFile"
+                                       OnClick="SelectFilePaths"
+                                       Disabled="@(isDoingAction)">
+                                Select Tiles
+                            </MudButton>
+
+                            @if (filePaths.Count > 1)
+                            {
+                                <MudText>@filePaths.Count Files Selected</MudText>
+                            }
+                            else if (filePaths.Count > 0)
+                            {
+                                <MudText>@filePaths.Count File Selected</MudText>
+                            }
+                        </div>
+
+                        <div class="d-flex align-items-center gap-2 mt-3">
+                            <MudText Typo="Typo.h6">Configuration</MudText>
+                            <MudIcon Icon="@Icons.Material.Filled.Settings" />
+                        </div>
+
+                        <MudDivider Class="flex-grow-0" />
+
+                        <div class="d-flex flex-column gap-1">
+                            <div class="d-flex gap-2 align-items-center">
+                                <MudText Typo="Typo.h6">Tile Grid</MudText>
+                                <MudTooltip Text="Choose how many rows and columns your
+                                                  selected tiles will be arranged in"
+                                            Arrow="true" Placement="Placement.Top">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Info"
+                                                   Color="Color.Primary" Size="Size.Small" />
+                                </MudTooltip>
+                            </div>
+                            <div class="d-flex gap-3">
+                                <MudNumericField T="int" Label="Rows"
+                                                 Variant="Variant.Filled"
+                                                 @bind-Value="@settings.Rows" Min="1"
+                                                 Disabled="@(isDoingAction)" />
+                                <MudNumericField T="int" Label="Colums"
+                                                 Variant="Variant.Filled"
+                                                 @bind-Value="@settings.Columns" Min="1"
+                                                 Disabled="@(isDoingAction)" />
+                            </div>
+                        </div>
+
+                        <div class="d-flex flex-column gap-1">
+                            <div class="d-flex gap-2 align-items-center">
+                                <MudText Typo="Typo.h6">Tile Dimensions</MudText>
+                                <MudTooltip Text="Each selected tile will be resized
+                                                  to the given dimensions"
+                                            Arrow="true" Placement="Placement.Top">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Info"
+                                                   Color="Color.Primary" Size="Size.Small" />
+                                </MudTooltip>
+                            </div>
+
+                            <div class="d-flex gap-3">
+                                <MudNumericField T="int" Label="Tile Width (px)"
+                                                 Variant="Variant.Filled"
+                                                 @bind-Value="@settings.TileWidth" Min="1"
+                                                 Disabled="@(isDoingAction)" />
+                                <MudNumericField T="int" Label="Tile Height (px)"
+                                                 Variant="Variant.Filled"
+                                                 @bind-Value="@settings.TileHeight" Min="1"
+                                                 Disabled="@(isDoingAction)" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="d-flex gap-0 align-items-center flex-wrap">
+                                <div class="d-flex align-items-center gap-2 me-2">
+                                    <MudCheckBox T="bool" @bind-Value="@settings.FixDayZTiles" Disabled="@(isDoingAction)"
+                                                 Label="Fix DayZ Tiles Spacing" Color="Color.Primary" />
+                                    <MudTooltip Arrow="true" Placement="Placement.Top">
+                                        <ChildContent>
+                                            <MudIconButton Icon="@Icons.Material.Filled.Info"
+                                                           Color="Color.Primary" Size="Size.Small" />
+                                        </ChildContent>
+                                        <TooltipContent>
+                                            <MudText Typo="Typo.subtitle2"
+                                                     Style="font-size: 0.75rem">
+                                                Fix the overlapping and border artifacts from the DayZ game file tiles
+                                            </MudText>
+
+                                            <MudText Typo="Typo.subtitle2"
+                                                     Style="font-size: 0.75rem">
+                                                Enter the exact dimensions of each selected tile
+                                            </MudText>
+
+                                            <MudText Typo="Typo.subtitle2"
+                                                     Style="font-size: 0.75rem">
+                                                Only works if all selected tiles have the same dimensions
+                                            </MudText>
+                                        </TooltipContent>
+
+                                    </MudTooltip>
+                                </div>
+
+                                <div class="d-flex align-items-center gap-2">
+                                    <MudCheckBox T="bool"
+                                                 Label="Draw Rows first" Color="Color.Primary"
+                                                 @bind-Value="@settings.DrawRowsFirst"
+                                                 Disabled="@(isDoingAction)" />
+                                    <MudTooltip Text="Draw the selected tiles row by row or column by column"
+                                                Arrow="true" Placement="Placement.Top">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Info"
+                                                       Color="Color.Primary" Size="Size.Small" />
+                                    </MudTooltip>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-3">
+                                <MudNumericField T="int" Label="DayZ Tile Width (px)"
+                                                 Variant="Variant.Filled"
+                                                 @bind-Value="@settings.DayZTileWidth" Min="1"
+                                                 Disabled="@(!settings.FixDayZTiles || isDoingAction)" />
+                                <MudNumericField T="int" Label="DayZ Tile Height (px)"
+                                                 Variant="Variant.Filled"
+                                                 @bind-Value="@settings.DayZTileHeight" Min="1"
+                                                 Disabled="@(!settings.FixDayZTiles || isDoingAction)" />
+                            </div>
+                        </div>
+                    </MudStack>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    </MudContainer>
+</div>
+
+
+
+@code {
+    private List<string> filePaths = new List<string>();
+    private MapMergeSettings settings = new();
+
+    private bool isDoingAction = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("adjustMapPreviewSize");
+        }
+    }
+
+    private async void SelectFilePaths()
+    {
+        isDoingAction = true;
+        StateHasChanged();
+
+        try
+        {
+            var dialogResult = await FileDialogService.GetFilePathsAsync(".png;.jpg;.jpeg", 
+            "Image Files (*.png;*.jpg;*.jpeg)|*.png;*.jpg;*.jpeg");
+
+            if (dialogResult is not null)
+            {
+                filePaths = dialogResult.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error opening File Dialog: {ex.Message}", Severity.Error);
+        }
+
+        isDoingAction = false;
+        StateHasChanged();
+    }
+
+    private void IsMergingTilesChanged(bool isMergingTiles)
+    {
+        this.isDoingAction = isMergingTiles;
+        StateHasChanged();
+    }
+}

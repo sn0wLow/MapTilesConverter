@@ -1,0 +1,72 @@
+﻿.map-preview-main-content {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    position: relative;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--mud-palette-grey-dark);
+}
+
+::deep .btn-save-preview {
+    opacity: 0.50;
+    transition: opacity 300ms ease-in;
+}
+
+    ::deep .btn-save-preview:hover {
+        opacity: 1;
+    }
+
+::deep .fx-stack {
+    display: grid;
+    grid-template: 1fr / 1fr;
+    place-items: center;
+}
+
+    ::deep .fx-stack > * {
+        grid-column: 1 / 1;
+        grid-row: 1 / 1;
+    }
+
+.map-preview-container {
+    transition: filter 1s ease-in-out;
+}
+
+.map-preview-image {
+    border: 0;
+    background-color: transparent;
+    opacity: 1;
+    transition: opacity 2s ease-in-out;
+    pointer-events: none;
+}
+
+    .map-preview-image.is-doing-action {
+        opacity: 0;
+    }
+
+    .map-preview-image.finished {
+        opacity: 1;
+    }
+
+
+
+::deep .action-status-container {
+    transition: opacity 0.5s ease-in-out;
+    opacity: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.action-status-container.is-doing-action {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.doing-action-blur {
+    filter: blur(0.5rem);
+}
